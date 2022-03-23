@@ -30,14 +30,12 @@ shop states. The third variable is a structural factor indicating the importance
 
 Explanation of the variables in the text
 
-```{r}
-## Pre-processing:
-During this step, we will open the data file and make sur that every elements contained is properly set and that the data variable is ready to be used for further analysis.
-```
-
 
 ```{r processing, echo = FALSE}
+## Pre-processing:
+#During this step, we will open the data file and make sur that every elements contained is properly #set and that the data variable is ready to be used for further analysis.
 #open the data file
+
 data <- read.table('data.rtf', header=FALSE, sep="", skip = 9)
 
 #rename the column
@@ -56,15 +54,19 @@ data$Ag_force <- gsub("}", "", data$Ag_force)
 #set the correct type to the different column
 data$Ag_force <- as.numeric(data$Ag_force)
 
-#Since the union-shop is already described as dummy no need to convert its type.
+#The union-shop is already described as dummy, but we are going to check the class and change it to  factor
+class(data$Union_shop_dummy)
+#data$Union_shop_dummy <- as.factor(data$Union_shop_dummy) RETURN FALSE VALUES
 ```
 
 ## Exploratory Data Analysis:
 
-```{r, echo = FALSE, eval=FALSE}
+```{r, echo = FALSE}
 #Let's first get an insight on the differents column
 summary(data)
+```
 
+```{r, echo = FALSE, eval=FALSE}
 #check if there are missing values:
 is.null(data)
 ```
@@ -82,18 +84,15 @@ boxplot(data[,2], xlab = "Degree of conflict", ylab = "Value", main = "Boxplot o
 Since there are some outliers, we will try to fit the model with or without them to access if these are influential points. (slide 68 Lecture 2)
 
 For the dummy variable, a barplot is preferred to assess the distribution
-
 ```{r}
 barplot(prop.table(table(data$Union_shop_dummy)), xlab = "Union shop status", ylab = "Frequencies", main = "Distribution of the union shop status")
 ```
-Now we will analysis the distribution of the differents variable factors according to our groups namely Right-to-work states and Union-shop States
+Now we will analysis the distribution of the differents variable factors according to our groups namely Right-to-work states and Union-shop States (ca on maintien que c'est trop)
 
 ```{r}
-
+# a remplir
 
 ```
-
-
 
 Let's see how the variables are linked to each other before beginning the model fitting. It could help us make sure that the model fits properly afterwards. 
 
@@ -113,7 +112,7 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
 }
 
 
-pairs(data[, 2:6], labels = c("Degree of conflict","Degree of unionization","Union Shop","Sector","Ag force"), main = "Correlation plots associated with the numerical variables", cex.labels = 1.1, upper.panel = panel.cor)
+pairs(data[, 2:6], labels = c("Degree of conflict","Degree of unionization","Union Shop","Sector","Ag force"), main = "Correlation plots associated with the numerical variables with the Pearson correlation coefficient associated", cex.labels = 1.1, upper.panel = panel.cor)
 
 ```
 
@@ -124,6 +123,13 @@ pairs(data[, 2:6], labels = c("Degree of conflict","Degree of unionization","Uni
 - The first step in the analysis is a direct comparison of the observed levels of industrial conflict in the right-to-work stated and union-shop states for the period 1957-1962
 
 - the measure of industrial conflict is the proportion of time lost due to work stoppages (man hours relative to total estimated working time)
+```{r, echo = FALSE}
+#Lets investiagte if there is a significant difference in the degree of conflit between unionized and non-unionized states
+
+ttest <- t.test(data[data$Union_shop_dummy =='0',]$Degree_of_conflict,data[data$Union_shop_dummy =='0',]$Degree_of_conflict)
+
+#print('the t value for the comparison between the degree of conflict between unionized and non-unionized statses of '+ ttest$statistic+' with a p-value of'+ ttest$p.value) LIGNE MARCHE PAS
+```
 
 (RESULT PAPER: 
 AVERAGE PER YEAR: 
@@ -149,6 +155,21 @@ right to work: 267,151 hours per year // union-shop : 712,603 hours per year
 3. errors are uncorrelated
 4. errors are normally distributed
 
+```{r, echo = FALSE}
+#linear Regression (WE KEEP THE INTERCEPT)
+
+linear_mod <- lm(Degree_of_conflict ~ Degree_of_unionization + Union_shop_dummy + Sector + Ag_force  , data=data)  
+
+summary(linear_mod)$coef
+```
+
+
+```{r}
+linear_mod.resid <- residuals(linear_mod)
+linear_mod.fitted <- fitted(linear_mod) 
+
+plot(linear_mod.fitted, linear_mod.resid)
+```
 #### Model Assessment:
 - State how the model fitted (Ordinary Least square) degree_of_conflict ~ remaining variable factors
 - check the assumptions --> qqplot of the residuals and residuals vs. fitted
