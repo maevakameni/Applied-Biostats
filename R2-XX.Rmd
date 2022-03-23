@@ -1,0 +1,163 @@
+---
+title: "informative title"
+author: "Clara le Draoulec, Maeva Kameni"
+date: "March 22, 2022"
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 4
+    fig_caption: true
+    
+geometry: margin=2.5cm
+fontsize: 12 pt
+header-includes:
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhead[R]{Clara le Draoulec, Maeva Kameni}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+```
+
+## Introduction:
+ quick background presentation + scientific question
+ define all the variable: 
+ 
+CITATION: The first variable considered is the degree of unionization of the manufacturing labor force. Second, a dummy variable is used for the classifications right-to-work states and union-
+shop states. The third variable is a structural factor indicating the importance of relatively non-unionized industries in the economy of a given state. The fourth variable is the size of the agricultural labor force relative to the to- tal labor force.
+
+Explanation of the variables in the text
+
+```{r}
+## Pre-processing:
+During this step, we will open the data file and make sur that every elements contained is properly set and that the data variable is ready to be used for further analysis.
+```
+
+
+```{r processing, echo = FALSE}
+#open the data file
+data <- read.table('data.rtf', header=FALSE, sep="", skip = 9)
+
+#rename the column
+names(data)[1] <- 'State_postal_abbreviation'
+names(data)[2] <- 'Degree_of_conflict' #percentage of worker hours lost in stoppages
+names(data)[3] <- 'Degree_of_unionization' #percent of workforce
+names(data)[4] <- 'Union_shop_dummy' #1=Non-right to work 0=Right to work
+names(data)[5] <- 'Sector' #percent in food, textiles and apparel
+names(data)[6] <- 'Ag_force' #percent working in agriculture
+
+
+#make sure the format is alright
+data$Ag_force <-  gsub("\\\\", "", data$Ag_force)
+data$Ag_force <- gsub("}", "", data$Ag_force)
+
+#set the correct type to the different column
+data$Ag_force <- as.numeric(data$Ag_force)
+
+#Since the union-shop is already described as dummy no need to convert its type.
+```
+
+## Exploratory Data Analysis:
+
+```{r, echo = FALSE, eval=FALSE}
+#Let's first get an insight on the differents column
+summary(data)
+
+#check if there are missing values:
+is.null(data)
+```
+
+```{r}
+#Let's visualize the distributions in the different columns
+par(mfrow=c(1,2))
+
+#according to the different scales it is more appropriate to separate the first numerical column from the others.
+boxplot(data[,c(3,5,6)], xlab = "Variables", main = "Boxplots of different numerical varibles", ylab = "Values", names=c("Degree of Unioniation","Sector","Ag Force")) 
+
+boxplot(data[,2], xlab = "Degree of conflict", ylab = "Value", main = "Boxplot of the degree of conflict")
+
+```
+Since there are some outliers, we will try to fit the model with or without them to access if these are influential points. (slide 68 Lecture 2)
+
+For the dummy variable, a barplot is preferred to assess the distribution
+
+```{r}
+barplot(prop.table(table(data$Union_shop_dummy)), xlab = "Union shop status", ylab = "Frequencies", main = "Distribution of the union shop status")
+```
+Now we will analysis the distribution of the differents variable factors according to our groups namely Right-to-work states and Union-shop States
+
+```{r}
+
+
+```
+
+
+
+Let's see how the variables are linked to each other before beginning the model fitting. It could help us make sure that the model fits properly afterwards. 
+
+```{r}
+#to assess the correlation between the variables (only the numerical one) we are going to plot scatter plots and the correlation coefficients associated
+
+#function allowing to put the correlation cofficients on the plot
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x, y)
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = 1.1)
+}
+
+
+pairs(data[, 2:6], labels = c("Degree of conflict","Degree of unionization","Union Shop","Sector","Ag force"), main = "Correlation plots associated with the numerical variables", cex.labels = 1.1, upper.panel = panel.cor)
+
+```
+
+
+## Statisitics and model fitting:
+
+### First step: 
+- The first step in the analysis is a direct comparison of the observed levels of industrial conflict in the right-to-work stated and union-shop states for the period 1957-1962
+
+- the measure of industrial conflict is the proportion of time lost due to work stoppages (man hours relative to total estimated working time)
+
+(RESULT PAPER: 
+AVERAGE PER YEAR: 
+right-to-work : 0.19% // non-right to work:0.24% --> significative at 5%
+
+AVERAGE TOTAL MAN HOURS LOST: 
+right to work: 267,151 hours per year // union-shop : 712,603 hours per year
+--> significative 
+--> causative factors: conceivably be favtor other than the existaence or non existence of a right to work law)
+
+
+--> test the statements (better test t-test independant) : 
+\section{- Agriculture > industry in right to work whereas industry  > agriculture. }
+
+\section{" Where the relatively non-unionized agricultural sector is of major importance in the economy of a state, the theoretical level of industrial conflict should be less than where this is not the case".}
+
+### Second step:
+- Try to explain the outcome variable using the variable factors (variance explained R^2 maybe adj-R^2) 
+--> multiple linear regression (2 digits and ^ on estimates)
+--> state the assumptions:
+1. errors have mean 0
+2. errors are homoscedastic (same variance) 
+3. errors are uncorrelated
+4. errors are normally distributed
+
+#### Model Assessment:
+- State how the model fitted (Ordinary Least square) degree_of_conflict ~ remaining variable factors
+- check the assumptions --> qqplot of the residuals and residuals vs. fitted
+
+
+```{r diagnostic plots, echo=FALSE}
+
+```
+
+
+## Conclusion
+
