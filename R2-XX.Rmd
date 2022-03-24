@@ -61,9 +61,19 @@ class(data$Union_shop_dummy)
 
 ## Exploratory Data Analysis:
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results = 'asis'}
 #Let's first get an insight on the differents column
-summary(data)
+summarize(data)
+#xtable(summarize(data, type = "numeric", variables = "Union_shop_dummy"))
+#x <- 
+#print.xtable(summarize(data, type = "numeric"))
+#x <- format(ftable(summary(data, type = "numeric")))
+#x <- table(summary(data))
+#knitr::kable(x)
+
+knitr::kable(x = summary(data, digits = 2), 
+      col.names = c("State postal abbreviation", "Degree of conflict", "Degree of unionization", "Union shop dummy", "Sector", "Ag force"),
+      caption = "Summary of the variable factors")
 ```
 
 ```{r, echo = FALSE, eval=FALSE}
@@ -78,9 +88,16 @@ par(mfrow=c(1,2))
 #according to the different scales it is more appropriate to separate the first numerical column from the others.
 boxplot(data[,c(3,5,6)], xlab = "Variables", main = "Boxplots of different numerical varibles", ylab = "Values", names=c("Degree of Unioniation","Sector","Ag Force")) 
 
+#Boxplot of the outcome variable
 boxplot(data[,2], xlab = "Degree of conflict", ylab = "Value", main = "Boxplot of the degree of conflict")
 
 ```
+```{r, echo=FALSE}
+#See if it is skewed or short-/long- tails
+barplot(data$Degree_of_conflict, xlab = "Degree of conflict", ylab = "Value", main = "Boxplot of the degree of conflict")
+```
+
+
 Since there are some outliers, we will try to fit the model with or without them to access if these are influential points. (slide 68 Lecture 2)
 
 For the dummy variable, a barplot is preferred to assess the distribution
@@ -90,13 +107,18 @@ barplot(prop.table(table(data$Union_shop_dummy)), xlab = "Union shop status", yl
 Now we will analysis the distribution of the differents variable factors according to our groups namely Right-to-work states and Union-shop States (ca on maintien que c'est trop)
 
 ```{r}
-# a remplir
+#install.packages('prrr')
+library('purrr')
+split_sum <- data %>% split(.$Union_shop_dummy) %>% map(summary) 
+knitr::kable(x = split_sum, 
+      col.names = c("State postal abbreviation", "Degree of conflict", "Degree of unionization", "Union shop dummy", "Sector", "Ag force"),
+      caption = "Summary of the variable factors")
 
 ```
 
 Let's see how the variables are linked to each other before beginning the model fitting. It could help us make sure that the model fits properly afterwards. 
 
-```{r}
+```{r, echo=FALSE}
 #to assess the correlation between the variables (only the numerical one) we are going to plot scatter plots and the correlation coefficients associated
 
 #function allowing to put the correlation cofficients on the plot
@@ -148,8 +170,15 @@ right to work: 267,151 hours per year // union-shop : 712,603 hours per year
 
 ### Second step:
 - Try to explain the outcome variable using the variable factors (variance explained R^2 maybe adj-R^2) 
---> multiple linear regression (2 digits and ^ on estimates)
---> state the assumptions:
+--> multiple linear regression (2 digits and ^ on estimates) : state how model fitted (ie, LS) CLEARLY describe how model selected define all terms
+
+--> assumptions of the multiple linear regression:
+1. A linear relationship between the dependent and independent variables
+2. The independent variables are not highly correlated with each other
+3. The variance of the residuals is constant
+4. Independence of observation
+
+--> state the assumptions: (ON THE ERROR)
 1. errors have mean 0
 2. errors are homoscedastic (same variance) 
 3. errors are uncorrelated
@@ -159,20 +188,36 @@ right to work: 267,151 hours per year // union-shop : 712,603 hours per year
 #linear Regression (WE KEEP THE INTERCEPT)
 
 linear_mod <- lm(Degree_of_conflict ~ Degree_of_unionization + Union_shop_dummy + Sector + Ag_force  , data=data)  
-
-summary(linear_mod)$coef
+summary(linear_mod)
 ```
 
-
-```{r}
-linear_mod.resid <- residuals(linear_mod)
-linear_mod.fitted <- fitted(linear_mod) 
-
-plot(linear_mod.fitted, linear_mod.resid)
-```
 #### Model Assessment:
 - State how the model fitted (Ordinary Least square) degree_of_conflict ~ remaining variable factors
 - check the assumptions --> qqplot of the residuals and residuals vs. fitted
+
+
+
+```{r residuals, echo=FALSE}
+
+linear_mod.resid <- residuals(linear_mod)
+linear_mod.fitted <- fitted(linear_mod) 
+
+plot(linear_mod.fitted,linear_mod.resid, main="Evolution of the residuals with respect to fitted values")
+lines(smooth.spline(linear_mod.fitted, linear_mod.resid),lty=2 , col="black")
+
+legend(x=2, y=1.7, legend=c("Fitting curve", "data points" ), col=c("black", 'black'), box.lty=0, lty= c(2 , NA), pch = c(NA, 1))
+```
+Commenter le plot 
+
+
+```{r qqplot, echo=FALSE}
+#create Q-Q plot for residuals
+qqnorm(linear_mod.resid)
+
+#add a straight diagonal line to the plot
+qqline(linear_mod.resid) 
+```
+commenter le plot
 
 
 ```{r diagnostic plots, echo=FALSE}
