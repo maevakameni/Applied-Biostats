@@ -23,6 +23,7 @@ knitr::opts_chunk$set(echo = FALSE)
 #install.packages('kableExtra')
 library(dplyr)
 library('kableExtra')
+library("olsrr")
 ```
 
 ## Introduction:
@@ -60,20 +61,21 @@ class(data$Union_shop_dummy)
 ```
 
 ## Exploratory Data Analysis:
+Before performing any analysis on the data set, the first step is to further look at the individual variable, examine their distribution, search for any outliers that can influence and biais our model and eventually our conclusions.
 
-```{r univariate, echo = FALSE}
+```{r summary, echo = FALSE}
+#Je sais pas pourquoi ca marche pas quand je knit
 
 summary(data, digits = 2) %>%
-  kableExtra::kbl(col.names = c("State postal abbreviation", "Degree of conflict", "Degree of unionization", "Union shop dummy", "Sector", "Ag force"),
-      caption = "Summary of the variable factors") %>%
-  kableExtra::kable_material(c("striped", "hover"))
+  kable(col.names = c("State postal abbreviation", "Degree of conflict", "Degree of unionization", "Union shop dummy", "Sector", "Ag force"), caption = "Summary of the variable factors") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),font_size = 13) 
 ```
 ```{r, echo = FALSE, eval=FALSE}
 #check if there are missing values:
 is.null(data)
 ```
 
-```{r univariate analysis}
+```{r univariate analysis, fig.pos='h', out.width= "50%", fig.show="hold", echo=FALSE}
 #Let's visualize the distributions in the different columns
 par(mfrow=c(1,2))
 
@@ -85,16 +87,24 @@ boxplot(data[,2], ylab = "Values", main = "Boxplot of the degree of conflict", x
 
 ```
 
-Since there are some outliers, we will try to fit the model with or without them to access if these are influential points.
+Let's now have a look at the output variable, namely the degree of conflict.
 
-```{r, echo=FALSE}
+```{r EDA ouput, echo=FALSE}
 #See if it is skewed or short-/long- tails
-barplot(data$Degree_of_conflict, xlab = "Degree of conflict", ylab = "Value", main = "Barplot of the degree of conflict")
+hist(data$Degree_of_conflict, xlab = "Degree of conflict", ylab = "Density", main = "Barplot of the degree of conflict", breaks = 13, freq = FALSE)
+
+par(new=TRUE)
+plot(density(data$Degree_of_conflict), xlab = "", ylab = "", main = "", yaxt="n", xlim = c(0,4))
 ```
-For the dummy variable, a barplot is preferred to assess the distribution
-```{r, echo=FALSE}
+Given this figure, we can now affirm that our output follows a gaussian distribution.
+
+Finally, concerning the dummy variable, a barplot is preferred to assess the distribution
+```{r dummy, echo=FALSE}
 barplot(prop.table(table(data$Union_shop_dummy)), xlab = "Union shop status", ylab = "Frequencies", main = "Distribution of the union shop status")
 ```
+This latter figure ensures that there is fairly the same of number of observation in the two groups that we will compare in the rest of the anaysis. 
+
+
 Now we will analysis the distribution of the differents variable factors according to our groups namely Right-to-work states and Union-shop States (ca on maintien que c'est trop) PAS FORCEMENT NECESSAIRE JE TROUVE QUE C?EST UN PEU OVERKILL
 
 ```{r}
@@ -182,10 +192,27 @@ linear_mod <- lm(Degree_of_conflict ~ Degree_of_unionization + Union_shop_dummy 
 summary(linear_mod)
 ```
 
+Since the EDA allowed us to see that there are some outliers,  we will perform a Cook's plot to detect if there is any influential points.
+```{r COOK,echo=FALSE}
+#install.packages("olsrr")
+ols_plot_cooksd_bar(linear_mod)
+```
+
+Given that results we sill remove those points to see if these indeed influence the results of our multiple linear regression
+```{r}
+data_clean <- data[-c(5,14, 17,46),]
+
+linear_mod_clean <- lm(Degree_of_conflict ~ Degree_of_unionization + Union_shop_dummy + Sector + Ag_force  , data=data_clean)
+
+summary(linear_mod_clean)$coef
+
+```
+
 #### Model Assessment:
 - State how the model fitted (Ordinary Least square) degree_of_conflict ~ remaining variable factors
 - check the assumptions --> qqplot of the residuals and residuals vs. fitted
                         --> function VIF pour check la mutlicollinearité (les variables indé sont elles vraiment inépendantes entre elles)
+
 
 ```{r residuals, echo=FALSE}
 
