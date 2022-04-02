@@ -3,27 +3,38 @@ title: "Analysis of the factors that contribute to the industrial conflict (A ch
 author: "Clara le Draoulec, Maeva Kameni"
 date: "March 22, 2022"
 output:
-  html_document:
-    df_print: paged
   pdf_document:
+    extra_dependencies: ["float"]
     fig_width: 5
     fig_height: 4
     fig_caption: yes
+  html_document:
+    df_print: paged
 geometry: margin=2.5cm
 fontsize: 12 pt
 header-includes:
 - \usepackage{fancyhdr}
 - \pagestyle{fancy}
 - \fancyhead[R]{Clara le Draoulec, Maeva Kameni}
-
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(eval = TRUE, echo = FALSE, fig.align='center')
 #install.packages('kableExtra')
+#install.packages("rmarkdown")
+#install.packages('devtools')
+#devtools::install_github('yihui/tinytex')
+
 library(dplyr)
-library('kableExtra')
-library("olsrr")
+library(olsrr)
+library(knitr)
+library(tinytex)
+library('purrr')
+library(leaps)
+library(MASS)
+#tinytex::install_tinytex()
+#library(caret)
+getOption("repos")
 ```
 
 ## Introduction:
@@ -32,7 +43,7 @@ In the United States, in order to legislate the memberships in labor union, righ
 
 Four factors are selected as explanatory variables. The first variable is the degree of unionization of the manufacturing labor force. The second variable is a dummy variable and describes the status of the state, where 0 represents right-to-work states and 1 is assigned to union-shop states. The third variable is a measure of the variation in the industrial structure between states. The latter aims at describing how the union strength is distributed throughout the industries of a state. Finally, the fourth variable represents the size agricultural labor force
  
-```{r processing, echo = FALSE, eval=FALSE}
+```{r processing, results='hide'}
 ## Pre-processing:
 #During this step, we will open the data file and make sur that every elements contained is properly #set and that the data variable is ready to be used for further analysis.
 #open the data file
@@ -61,65 +72,83 @@ class(data$Union_shop_dummy)
 ```
 
 ## Exploratory Data Analysis:
-Before performing any analysis on the data set, the first step is to further look at the individual variable, examine their distribution, search for any outliers that can influence and biais our model and eventually our conclusions.
+Before performing any analysis on the data set, the first step is to further look at the individual variables, examine their distribution, search for any outliers that can influence and bias our model and eventually our conclusions.
 
-```{r summary, echo = FALSE}
-#Je sais pas pourquoi ca marche pas quand je knit
 
+```{r summary, eval=TRUE, fig.align='center', fig.height = 8, fig.width=8}
+#Je sais pas pourquoi ca marche pas quand je knit, donc pour le moment on va dire qu'on s'en fout et on va juste ecrire a la main aha
+options(knitr.kable.NA = '')
 summary(data, digits = 2) %>%
-  kable(col.names = c("State postal abbreviation", "Degree of conflict", "Degree of unionization", "Union shop dummy", "Sector", "Ag force"), caption = "Summary of the variable factors") %>%
-  kable_styling(bootstrap_options = c("striped", "hover"),font_size = 13) 
+  kableExtra::kbl(col.names = c("State postal abbreviation", "Degree of conflict", "Degree of unionization", "Union shop dummy", "Sector", "Ag force"), caption = "Summary of the variable factors") %>%
+  kableExtra::kable_material(c("striped", "hover"), font_size = 20, latex_options="scale_down") 
 ```
-```{r, echo = FALSE, eval=FALSE}
+
+```{r, echo = FALSE, eval=FALSE, include=FALSE}
 #check if there are missing values:
 is.null(data)
 ```
 
-```{r univariate analysis, fig.pos='h', out.width= "50%", fig.show="hold", echo=FALSE}
+```{r}
+#summary(data, digits = 2) %>%
+ # kableExtra::kable()%>%
+  #kableExtra::kable_material(c("striped", "hover"), font_size = 13) 
+```
+
+```{r univariate analysis, echo=FALSE, fig.show="hold",  fig.align='center', fig.height = 5, fig.width = 11, fig.cap = "Boxplots of the numerical variables"}
+#out.width="70%"
 #Let's visualize the distributions in the different columns
 par(mfrow=c(1,2))
 
 #according to the different scales it is more appropriate to separate the first numerical column from the others.
-boxplot(data[,c(3,5,6)], xlab = "Variables", main = "Boxplots of numerical explanatory varibles", ylab = "Values", names=c("Degree of Unionization","Sector","Ag Force")) 
+boxplot(data[,c(3,5,6)], xlab = "Variables", main = "Boxplots of numerical explanatory variables", ylab = "Values", names=c("Degree of Unionization","Sector","Ag Force"), cex.main = 1.3, cex.axis = 1, cex.lab =1.3) 
 
 #Boxplot of the outcome variable
-boxplot(data[,2], ylab = "Values", main = "Boxplot of the degree of conflict", xlab = "Degree of conflict")
+boxplot(data[,2], ylab = "Values", main = "Boxplot of the degree of conflict", xlab = "Degree of conflict", cex.main = 1.3, cex.lab = 1.3 , cex.axis=1.3)
+#cex.main = taille titre
+#cex.lab = les noms des axis ()
+#cex.axis = les numeros sur les axis
 
 ```
 
 Let's now have a look at the output variable, namely the degree of conflict.
 
-```{r EDA ouput, echo=FALSE}
+```{r EDA ouput, echo=FALSE, fig.show="hold",  fig.align='center', fig.height = 5, fig.width = 9, fig.cap = "Distribution of the degree of conflict"}
+
 #See if it is skewed or short-/long- tails
-hist(data$Degree_of_conflict, xlab = "Degree of conflict", ylab = "Density", main = "Barplot of the degree of conflict", breaks = 13, freq = FALSE)
+hist(data$Degree_of_conflict, xlab = "Degree of conflict", ylab = "Density", main = "Barplot of the degree of conflict", breaks = 13, freq = FALSE, cex.main = 1.3, cex=1.3, cex.axis = 1.3)
 
 par(new=TRUE)
-plot(density(data$Degree_of_conflict), xlab = "", ylab = "", main = "", yaxt="n", xlim = c(0,4))
+plot(density(data$Degree_of_conflict), xlab = "", ylab = "", main = "", yaxt="n", xlim = c(0,4), cex.axis = 1.3)
 ```
-Given this figure, we can now affirm that our output follows a gaussian distribution.
+
+Given this figure, we can now affirm that our output variable follows a gaussian distribution.
 
 Finally, concerning the dummy variable, a barplot is preferred to assess the distribution
-```{r dummy, echo=FALSE}
-barplot(prop.table(table(data$Union_shop_dummy)), xlab = "Union shop status", ylab = "Frequencies", main = "Distribution of the union shop status")
+```{r dummy, echo=FALSE, fig.cap = "Distribution of the states with respect to their union status",fig.align='center', fig.height = 4, fig.width = 7}
+barplot(prop.table(table(data$Union_shop_dummy)), xlab = "Union shop status", ylab = "Frequencies", main = "Distribution of the union shop status", cex.main = 1.1, cex=1.2, cex.names = 1.3, cex.lab= 1.2)
 ```
-This latter figure ensures that there is fairly the same of number of observation in the two groups that we will compare in the rest of the anaysis. 
+
+This latter figure ensures that there is fairly the same of number of observation in the two groups that we will compare in the rest of the analysis. 
 
 
 Now we will analysis the distribution of the differents variable factors according to our groups namely Right-to-work states and Union-shop States (ca on maintien que c'est trop) PAS FORCEMENT NECESSAIRE JE TROUVE QUE C?EST UN PEU OVERKILL
 
-```{r}
-#install.packages('prrr')
-library('purrr')
+```{r, eval=FALSE, echo=FALSE} 
+#VRAIMENT PAS SUR DE GARDER CA 
+#install.packages('purrr')
+
 split_sum <- data %>% split(.$Union_shop_dummy) %>% map(summary) 
-knitr::kable(x = split_sum, 
+kableExtra::kbl(x = split_sum, 
       col.names = c("State postal abbreviation", "Degree of conflict", "Degree of unionization", "Union shop dummy", "Sector", "Ag force"),
-      caption = "Summary of the variable factors", booktabs = TRUE)
+      caption = "Summary of the variable factors", booktabs = TRUE) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"),font_size = 15) 
+  
 
 ```
 
 Let's see how the variables are linked to each other before beginning the model fitting. It could help us make sure that the model fits properly afterwards. 
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.show="hold",  fig.align='center', fig.height = 7, fig.width = 11, fig.cap = "Correlation plots between the explanatory variables", fig.pos='t'}
 #to assess the correlation between the variables (only the numerical one) we are going to plot scatter plots and the correlation coefficients associated
 
 #function allowing to put the correlation cofficients on the plot
@@ -131,11 +160,11 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
     txt <- format(c(r, 0.123456789), digits = digits)[1]
     txt <- paste0(prefix, txt)
     if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
-    text(0.5, 0.5, txt, cex = 1.1)
+    text(0.5, 0.5, txt, cex = 1.6)
 }
 
 
-pairs(data[, 2:6], labels = c("Degree of conflict","Degree of unionization","Union Shop","Sector","Ag force"), main = "Correlation plots associated with the numerical variables with the Pearson correlation coefficient associated", cex.labels = 1.1, upper.panel = panel.cor)
+pairs(data[, 2:6], labels = c("Degree of conflict","Degree of unionization","Union Shop","Sector","Ag force"), main = "Correlation plots associated with the numerical variables with the Pearson correlation coefficient associated", cex.labels = 1.6, upper.panel = panel.cor, cex.main = 1.2, cex.lab = 1.6, cex.axis = 1.5)
 
 ```
 
@@ -147,13 +176,15 @@ ECRIRE UN TRUC BIEN:
 The main goal first step in the analysis is a direct comparison of the observed levels of industrial conflict in the right-to-work stated and union-shop states for the period 1957-1962
 
 - the measure of industrial conflict is the proportion of time lost due to work stoppages (man hours relative to total estimated working time)
-```{r, echo = FALSE}
+```{r, echo = FALSE, results='hide'}
 #Lets investiagte if there is a significant difference in the degree of conflit between unionized and non-unionized states
 
 ttest <- t.test(data[data$Union_shop_dummy =='0',]$Degree_of_conflict,data[data$Union_shop_dummy =='1',]$Degree_of_conflict)
 
 print(paste('The T value for the comparison between the degree of conflict between unionized and non-unionized states is',ttest$statistic,'with a p-value of',ttest$p.value)) 
 ```
+The independent t-test between the unionized and non-unionized states suggests that there is no significant difference in terms of degree of conflict.
+
 PAS FORCEMENT NECESSAIRE: 
 (RESULT PAPER: 
 AVERAGE PER YEAR: 
@@ -185,21 +216,27 @@ right to work: 267,151 hours per year // union-shop : 712,603 hours per year
 3. errors are uncorrelated
 4. errors are normally distributed
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, results="hide"}
 #linear Regression (WE KEEP THE INTERCEPT)
 
 linear_mod <- lm(Degree_of_conflict ~ Degree_of_unionization + Union_shop_dummy + Sector + Ag_force  , data=data)  
 summary(linear_mod)
 ```
+#### stepwise regression
 
+```{r, results='hide'}
+step.model <- MASS::stepAIC(linear_mod, direction = "both", trace = FALSE)
+summary(step.model)
+```
 Since the EDA allowed us to see that there are some outliers,  we will perform a Cook's plot to detect if there is any influential points.
-```{r COOK,echo=FALSE}
+```{r COOK,echo=FALSE, fig.show="hold",  fig.align='center', fig.height = 5, fig.width = 9 , fig.cap = "Cook's Distance Bar Plot for our model"}
 #install.packages("olsrr")
 ols_plot_cooksd_bar(linear_mod)
+
 ```
 
 Given that results we sill remove those points to see if these indeed influence the results of our multiple linear regression
-```{r}
+```{r, results='hide'}
 data_clean <- data[-c(5,14, 17,46),]
 
 linear_mod_clean <- lm(Degree_of_conflict ~ Degree_of_unionization + Union_shop_dummy + Sector + Ag_force  , data=data_clean)
@@ -214,7 +251,7 @@ summary(linear_mod_clean)$coef
                         --> function VIF pour check la mutlicollinearité (les variables indé sont elles vraiment inépendantes entre elles)
 
 
-```{r residuals, echo=FALSE}
+```{r residuals, echo=FALSE, fig.show="hold",  fig.align='center', fig.height = 5, fig.width = 9, fig.cap = "Residuals vs. fitted plot"}
 
 linear_mod.resid <- residuals(linear_mod)
 linear_mod.fitted <- fitted(linear_mod) 
@@ -227,7 +264,7 @@ legend(x=2, y=1.7, legend=c("Fitting curve", "data points" ), col=c("black", 'bl
 Commenter le plot 
 
 
-```{r qqplot, echo=FALSE}
+```{r qqplot, echo=FALSE, ig.show="hold",  fig.align='center', fig.height = 5, fig.width = 9, fig.cap = "Q-Q plot"}
 #create Q-Q plot for residuals
 qqnorm(linear_mod.resid)
 
@@ -238,14 +275,17 @@ commenter le plot
 
 
 ```{r diagnostic multicollinearity, echo=FALSE}
-#library(caret)
+
 
 car::vif(linear_mod)  %>%
-  kbl(col.names = c("Variance Inflation Factor"),
+  kableExtra::kbl(col.names = c("Variance Inflation Factor"),
 #row.names = c("Degree of unionization", "Union shop dummy", "Sector", "Ag force"), Marche pas encore
       caption = "Analysis of the multicollinearity of the numerical explanatory variables") %>%
-  kable_material(c("striped", "hover"))
+  kableExtra::kable_material(c("striped", "hover"))
 ```
 
 ## Conclusion
+```{r}
+#rmarkdown::render('R2-XX.Rmd', output_format = 'pdf_document')
+```
 
